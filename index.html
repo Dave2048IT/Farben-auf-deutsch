@@ -85,12 +85,17 @@
 			Schwarz: "SFX/Schwarz.wav"
 		};
 
-		const audioDateien = {};
-		const audioElemente = {};
+		let audioContext;
+		const audioPuffer = {};
 
-		// Alle vier WAV-Dateien vorab laden
+		let aktuelleQuelle = null;
+
+		// Alle WAV-Dateien laden und vorab decodieren
 		async function audioVorbereiten() {
 			try {
+				const AudioContext = window.AudioContext || window.webkitAudioContext;
+				audioContext = new AudioContext();
+
 				for (const [farbe, datei] of Object.entries(dateiNamen)) {
 					const antwort = await fetch(datei);
 
@@ -98,37 +103,47 @@
 						throw new Error(`Fehler beim Laden: ${datei}`);
 					}
 
-					const blob = await antwort.blob();
-					audioDateien[farbe] = URL.createObjectURL(blob);
+					const daten = await antwort.arrayBuffer();
 
-					audioElemente[farbe] = new Audio(audioDateien[farbe]);
+					audioPuffer[farbe] = await audioContext.decodeAudioData(daten);
 				}
 
-				console.log("Alle vier WAV-Dateien sind geladen.");
+				console.log("Alle vier WAV-Dateien sind geladen und decodiert.");
 
-				// Farbtasten freigeben
 				document.querySelectorAll(".farbbutton").forEach(button => {
 					button.disabled = false;
 				});
 
 			} catch (fehler) {
-				console.error("Audio-Ladefehler:", fehler);
-				alert("Die WAV-Dateien konnten nicht vollständig geladen werden.");
+				console.error("Audio-Vorbereitung fehlgeschlagen:", fehler);
+				alert("Die WAV-Dateien konnten nicht vollständig vorbereitet werden.");
 			}
 		}
 
-		function sprechen(farbe) {
-			const audio = audioElemente[farbe];
+		// Farbe abspielen
+		async function sprechen(farbe) {
+			const puffer = audioPuffer[farbe];
 
-			if (!audio) return;
+			if (!puffer || !audioContext) return;
 
-			// Alle anderen Ansagen stoppen
-			Object.values(audioElemente).forEach(datei => {
-				datei.pause();
-				datei.currentTime = 0;
-			});
+			// AudioContext bei Bedarf aktivieren
+			if (audioContext.state === "suspended") {
+				await audioContext.resume();
+			}
 
-			audio.play();
+			// Vorherige Ansage stoppen
+			if (aktuelleQuelle) {
+				aktuelleQuelle.stop();
+				aktuelleQuelle.disconnect();
+			}
+
+			// Neue Audioquelle erzeugen
+			aktuelleQuelle = audioContext.createBufferSource();
+			aktuelleQuelle.buffer = puffer;
+			aktuelleQuelle.connect(audioContext.destination);
+
+			// Sofort abspielen
+			aktuelleQuelle.start(0);
 		}
 
 		// Beim Laden der Webseite starten
