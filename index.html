@@ -78,33 +78,41 @@
     </div>
 
     <script>
-		const audioDateien = {
+		const dateiNamen = {
 			Rot: "SFX/Rot.wav",
 			Gelb: "SFX/Gelb.wav",
 			Blau: "SFX/Blau.wav",
 			Schwarz: "SFX/Schwarz.wav"
 		};
 
-		// Dateien vorab laden
-		Object.values(audioDateien).forEach(audio => {
+		const audioElemente = {};
+
+		// Audio-Elemente erstellen und vorladen
+		for (const [farbe, datei] of Object.entries(dateiNamen)) {
+			const audio = new Audio(datei);
 			audio.preload = "auto";
 			audio.load();
-		});
+
+			audioElemente[farbe] = audio;
+		}
 
 		function sprechen(farbe) {
-			const audio = audioDateien[farbe];
+			const audio = audioElemente[farbe];
 
-			if (!audio) return;
+			if (!(audio instanceof HTMLAudioElement)) {
+				console.error("Audio-Element nicht gefunden:", farbe);
+				return;
+			}
 
-			// Andere Ansagen stoppen
-			Object.values(audioDateien).forEach(datei => {
+			// Alle anderen Ansagen stoppen
+			Object.values(audioElemente).forEach(datei => {
 				if (datei !== audio) {
 					datei.pause();
 					datei.currentTime = 0;
 				}
 			});
 
-			// Gewählte Farbe abspielen
+			// Gewählte WAV-Datei abspielen
 			audio.pause();
 			audio.currentTime = 0;
 
