@@ -78,27 +78,61 @@
     </div>
 
     <script>
-		const audioDateien = {
-			Rot: new Audio("SFX/Rot.wav"),
-			Gelb: new Audio("SFX/Gelb.wav"),
-			Blau: new Audio("SFX/Blau.wav"),
-			Schwarz: new Audio("SFX/Schwarz.wav")
+		const dateiNamen = {
+			Rot: "SFX/rot.wav",
+			Gelb: "SFX/gelb.wav",
+			Blau: "SFX/blau.wav",
+			Schwarz: "SFX/schwarz.wav"
 		};
 
+		const audioDateien = {};
+		const audioElemente = {};
+
+		// Alle vier WAV-Dateien vorab laden
+		async function audioVorbereiten() {
+			try {
+				for (const [farbe, datei] of Object.entries(dateiNamen)) {
+					const antwort = await fetch(datei);
+
+					if (!antwort.ok) {
+						throw new Error(`Fehler beim Laden: ${datei}`);
+					}
+
+					const blob = await antwort.blob();
+					audioDateien[farbe] = URL.createObjectURL(blob);
+
+					audioElemente[farbe] = new Audio(audioDateien[farbe]);
+				}
+
+				console.log("Alle vier WAV-Dateien sind geladen.");
+
+				// Farbtasten freigeben
+				document.querySelectorAll(".farbbutton").forEach(button => {
+					button.disabled = false;
+				});
+
+			} catch (fehler) {
+				console.error("Audio-Ladefehler:", fehler);
+				alert("Die WAV-Dateien konnten nicht vollständig geladen werden.");
+			}
+		}
+
 		function sprechen(farbe) {
-			const audio = audioDateien[farbe];
+			const audio = audioElemente[farbe];
 
 			if (!audio) return;
 
-			// Vorherige Ansage abbrechen
-			Object.values(audioDateien).forEach(datei => {
+			// Alle anderen Ansagen stoppen
+			Object.values(audioElemente).forEach(datei => {
 				datei.pause();
 				datei.currentTime = 0;
 			});
 
-			// Gewählte WAV-Datei abspielen
 			audio.play();
 		}
+
+		// Beim Laden der Webseite starten
+		audioVorbereiten();
     </script>
 
 </body>
