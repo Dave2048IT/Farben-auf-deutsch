@@ -78,76 +78,40 @@
     </div>
 
     <script>
-		const dateiNamen = {
+		const audioDateien = {
 			Rot: "SFX/Rot.wav",
 			Gelb: "SFX/Gelb.wav",
 			Blau: "SFX/Blau.wav",
 			Schwarz: "SFX/Schwarz.wav"
 		};
 
-		let audioContext;
-		const audioPuffer = {};
+		// Dateien vorab laden
+		Object.values(audioDateien).forEach(audio => {
+			audio.preload = "auto";
+			audio.load();
+		});
 
-		let aktuelleQuelle = null;
+		function sprechen(farbe) {
+			const audio = audioDateien[farbe];
 
-		// Alle WAV-Dateien laden und vorab decodieren
-		async function audioVorbereiten() {
-			try {
-				const AudioContext = window.AudioContext || window.webkitAudioContext;
-				audioContext = new AudioContext();
+			if (!audio) return;
 
-				for (const [farbe, datei] of Object.entries(dateiNamen)) {
-					const antwort = await fetch(datei);
-
-					if (!antwort.ok) {
-						throw new Error(`Fehler beim Laden: ${datei}`);
-					}
-
-					const daten = await antwort.arrayBuffer();
-
-					audioPuffer[farbe] = await audioContext.decodeAudioData(daten);
+			// Andere Ansagen stoppen
+			Object.values(audioDateien).forEach(datei => {
+				if (datei !== audio) {
+					datei.pause();
+					datei.currentTime = 0;
 				}
+			});
 
-				console.log("Alle vier WAV-Dateien sind geladen und decodiert.");
+			// Gewählte Farbe abspielen
+			audio.pause();
+			audio.currentTime = 0;
 
-				document.querySelectorAll(".farbbutton").forEach(button => {
-					button.disabled = false;
-				});
-
-			} catch (fehler) {
-				console.error("Audio-Vorbereitung fehlgeschlagen:", fehler);
-				alert("Die WAV-Dateien konnten nicht vollständig vorbereitet werden.");
-			}
+			audio.play().catch(fehler => {
+				console.error("Wiedergabefehler:", fehler);
+			});
 		}
-
-		// Farbe abspielen
-		async function sprechen(farbe) {
-			const puffer = audioPuffer[farbe];
-
-			if (!puffer || !audioContext) return;
-
-			// AudioContext bei Bedarf aktivieren
-			if (audioContext.state === "suspended") {
-				await audioContext.resume();
-			}
-
-			// Vorherige Ansage stoppen
-			if (aktuelleQuelle) {
-				aktuelleQuelle.stop();
-				aktuelleQuelle.disconnect();
-			}
-
-			// Neue Audioquelle erzeugen
-			aktuelleQuelle = audioContext.createBufferSource();
-			aktuelleQuelle.buffer = puffer;
-			aktuelleQuelle.connect(audioContext.destination);
-
-			// Sofort abspielen
-			aktuelleQuelle.start(0);
-		}
-
-		// Beim Laden der Webseite starten
-		audioVorbereiten();
     </script>
 
 </body>
